@@ -104,6 +104,13 @@ Vector3 transform(const Vector3& v, const Matrix4& m)
 	return result;
 }
 
+//À•WŠÔ‚Ì‹——£‚ğ‹‚ß‚é
+double CalculateDistance(Vector3& vec1, Vector3& vec2)
+{
+	double distance = pow(vec2.x - vec1.x, 2) + pow(vec2.y - vec1.y, 2) + pow(vec2.z - vec1.z, 2);
+	return distance;
+}
+
 //‘ã“ü‰‰Zq
 Matrix4& operator*=(Matrix4& m1, const Matrix4& m2)
 {
