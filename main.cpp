@@ -1,6 +1,7 @@
 #include "DxLib.h"
 #include "Vector3.h"
 #include <cstring>
+#include "Matrix4.h"
 
 // 球(sphere)の描画
 int DrawSphere3D(const Vector3& CenterPos, const float r, const int DivNum, const unsigned int DifColor, const unsigned int
@@ -8,6 +9,9 @@ int DrawSphere3D(const Vector3& CenterPos, const float r, const int DivNum, cons
 
 // 線分の描画
 int DrawLine3D(const Vector3& Pos1, const Vector3& Pos2, const unsigned int Color);
+
+//当たり判定の処理
+bool CheckAllCollisions(Vector3& playerPos, Vector3& enemyPos, int playerRadius, int enemyRadius);
 
 // カメラの位置と姿勢の設定
 int SetCameraPositionAndTargetAndUpVec(
@@ -78,12 +82,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	// 球の位置
 	Vector3 position;
+	int enemyRadius = 32;
 
 	//プレイヤー
 	Vector3 player;
 	float X = 0;
 	float Y = 0;
 	float Z = 0;
+	int playerRadius = 32;
+	bool hit = false;
 
 	int time = 200;
 	int coolTime = 50;
@@ -161,14 +168,24 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		// position = easeOut(start,end,timeRate);
 		// position = easeInOut(start,end,timeRate);
 
+		//当たり判定処理
+		hit = CheckAllCollisions(player, position, playerRadius, enemyRadius);
+
+		//敵にプレイヤーが当たったら
+		if (hit == true)
+		{
+			//プレイヤーのデスフラグを立てる(ゲームオーバーになる)
+
+		}
+
 		// 描画処理
 		ClearDrawScreen(); // 画面を消去
 		DrawAxis3D(500.0f); // xyz軸の描画
 
 		// 球の描画
-		DrawSphere3D(player, 5.0f, 32, GetColor(0, 0, 0), GetColor(255, 255, 255), TRUE);
+		DrawSphere3D(player, 5.0f, playerRadius, GetColor(0, 0, 0), GetColor(255, 255, 255), TRUE);
 
-		DrawSphere3D(position, 5.0f, 32, GetColor(255, 0, 0), GetColor(255, 255, 255), TRUE);
+		DrawSphere3D(position, 5.0f, enemyRadius, GetColor(255, 0, 0), GetColor(255, 255, 255), TRUE);
 		DrawSphere3D(p0, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
 		DrawSphere3D(p1, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
 		DrawSphere3D(p2, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
@@ -182,6 +199,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		DrawFormatString(0, 80, GetColor(255, 255, 255), "p1 (%6.1f,%6.1f,%6.1f)", p1.x, p1.y, p1.z);
 		DrawFormatString(0, 100, GetColor(255, 255, 255), "p2 (%6.1f,%6.1f,%6.1f)", p2.x, p2.y, p2.z);
 		DrawFormatString(0, 120, GetColor(255, 255, 255), "p3 (%6.1f,%6.1f,%6.1f)", p3.x, p3.y, p3.z);
+
+		//敵にプレイヤーが当たったら
+		if (hit == true)
+		{
+			DrawFormatString(0, 140, GetColor(255, 0, 0), "当たった");
+
+		}
 
 		//---------  ここまでにプログラムを記述  ---------//
 		// (ダブルバッファ)裏面
@@ -245,4 +269,36 @@ int DrawLine3D(const Vector3& Pos1, const Vector3& Pos2, const unsigned int Colo
 	VECTOR p2 = { Pos2.x,Pos2.y,Pos2.z }; // 構造体　初期化子リスト
 
 	return DrawLine3D(p1, p2, Color);
+}
+
+//当たり判定の処理
+bool CheckAllCollisions(Vector3& playerPos, Vector3& enemyPos, int playerRadius, int enemyRadius)
+{
+	//判定対象AとBの座標
+	Vector3 posA, posB;
+
+	//距離を図るための変数
+	double distance;
+
+	//半径
+	float radius;
+
+#pragma region
+	//自キャラの座標
+	posA = playerPos;
+
+	//マップの座標
+	posB = enemyPos;
+
+	//座標AとBの距離を求める
+	distance = CalculateDistance(posA, posB);
+
+	radius = playerRadius + enemyRadius;
+
+	//自キャラとマップの当たり判定
+	if (distance <= radius) {
+		return true;
+	}
+
+#pragma endregion
 }

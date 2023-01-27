@@ -26,6 +26,9 @@ Matrix4 translate(const Vector3& t);
 //座標変換(ベクトルと行列の掛け算をする)
 Vector3 transform(const Vector3& v, const Matrix4& m);
 
+//座標間の距離を求める
+double CalculateDistance(Vector3& vec1, Vector3& vec2);
+
 //代入演算子オーバーロード
 Matrix4& operator*=(Matrix4& m1, Matrix4& m2);
 
