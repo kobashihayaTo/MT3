@@ -1,7 +1,7 @@
 #include "DxLib.h"
 #include "Vector3.h"
-#include <cstring>
 #include "Matrix4.h"
+#include <cstring>
 
 // 球(sphere)の描画
 int DrawSphere3D(const Vector3& CenterPos, const float r, const int DivNum, const unsigned int DifColor, const unsigned int
@@ -23,9 +23,18 @@ int SetCameraPositionAndTargetAndUpVec(
 void DrawAxis3D(const float lengh); // x,y,z 軸の描画
 
 // ウィンドウのタイトルに表示する文字列
-const char TITLE[] = "LE2C_10_コバシ_ハヤト";
+const char TITLE[] = "LE2C_08_カワツジ_ショウタ";
 const int WindowWidth = 1600;
 const int WindowHeight = 900;
+
+enum Scene
+{
+	TitleScene,
+	GameScene,
+	ClearScene,
+	EndScene
+};
+
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine,
 	_In_ int nCmdShow) {
 
@@ -80,8 +89,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	float maxTime = 5.0f; // 全体時間[s]
 	float timeRate;       // 何% 時間が進んだか(率)
 
+	Vector3 a(0.0f, 0.0f, 0.0f);
+	Vector3 b(0.0f, 0.0f, 0.0f);
+	Vector3 c(0.0f, 0.0f, 0.0f);
+	Vector3 d(0.0f, 0.0f, 0.0f);
+	Vector3 e(0.0f, 0.0f, 0.0f);
+
 	// 球の位置
-	Vector3 position;
+	Vector3 enemy;
 	int enemyRadius = 32;
 
 	//プレイヤー
@@ -100,8 +115,18 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	startCount = GetNowHiPerformanceCount(); // long long int型 64bit int 
 
 	// 画像などのリソースデータの変数宣言と読み込み
+	int titleHundle = 0;
+	int clearHundle = 0;
+	int endHundle = 0;
+
+	titleHundle = LoadGraph("Resource/title.png");
+	clearHundle = LoadGraph("Resource/clear.png");
+	endHundle = LoadGraph("Resource/end.png");
 
 	// ゲームループで使う変数の宣言
+	int scene = Scene::TitleScene;
+
+	float elapsedTime = 0;
 
 	// 最新のキーボード情報用
 	char keys[256] = { 0 };
@@ -112,6 +137,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	// ゲームループ
 	while (true) {
 		// 最新のキーボード情報だったものは1フレーム前のキーボード情報として保存
+		for (int i = 0; i < 256; i++)
+		{
+			oldkeys[i] = keys[i];
+		}
+
 		// 最新のキーボード情報を取得
 		GetHitKeyStateAll(keys);
 
@@ -120,91 +150,144 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		//---------  ここからプログラムを記述  ----------//
 
 		// 更新処理
-		// [R]キーで、リスタート
-		if (CheckHitKey(KEY_INPUT_R)) {
-			startCount = GetNowHiPerformanceCount();
-		}
-
-		if (keys[KEY_INPUT_RIGHT]==1&& oldkeys[KEY_INPUT_RIGHT] == 0)
+		switch (scene)
 		{
-			timerFlag = true;
-			Z = 30;
+		case TitleScene:
+			if (keys[KEY_INPUT_RETURN] == 1 && oldkeys[KEY_INPUT_RETURN] == 0) {
+				scene = Scene::GameScene;
+				nowCount = 0;
+				startCount = GetNowHiPerformanceCount();
+			}
+
+			break;
+
+		case GameScene:
+			// [R]キーで、リスタート
+			if (CheckHitKey(KEY_INPUT_R)) {
+				startCount = GetNowHiPerformanceCount();
+			}
+
+			if (keys[KEY_INPUT_RIGHT] == 1 && oldkeys[KEY_INPUT_RIGHT] == 0)
+			{
+				timerFlag = true;
+				Z = 30;
+			}
+
+			if (timerFlag == true)
+			{
+				coolTime--;
+			}
+			if (coolTime <= 0 && timerFlag == true)
+			{
+				timerFlag = false;
+				coolTime = 50;
+				Z = 0;
+			}
+			// 経過時間(wlapsedTime[s])の計算
+			nowCount = GetNowHiPerformanceCount();
+			elapsedCount = nowCount - startCount;
+			elapsedTime = static_cast<float> (elapsedCount) / 1'000'000.0f;
+
+			// スタート地点　：　start
+			// エンド地点　：　end
+			// 経過時間　：　wlapsedTime[s]
+			// 移動完了の率(経過時間/全体時間) : timeRate(%)
+
+			timeRate = min(elapsedTime / maxTime, 1.0f);
+
+			// 2次ベジェ曲線の考え方を適用する
+			a = lerp(p0, p1, timeRate);
+			b = lerp(p1, p2, timeRate);
+			c = lerp(p2, p3, timeRate);
+			d = lerp(a, b, timeRate);
+			e = lerp(b, c, timeRate);
+
+			enemy = lerp(d, e, timeRate);
+
+			player = { X,Y,Z };
+
+			// position = easeIn(start, end, timeRate);
+			// position = easeOut(start,end,timeRate);
+			// position = easeInOut(start,end,timeRate);
+
+			//当たり判定処理
+			hit = CheckAllCollisions(player, enemy, playerRadius, enemyRadius);
+
+			//敵が終着点に着いたら
+			if (enemy.x == p3.x)
+			{
+				//プレイヤーのデスフラグを立てる(ゲームオーバーになる)
+				scene = Scene::ClearScene;
+			}
+			
+			//敵にプレイヤーが当たったら
+			if (hit == true)
+			{
+				//プレイヤーのデスフラグを立てる(ゲームオーバーになる)
+				scene = Scene::EndScene;
+			}
+
+			break;
+
+		case ClearScene:
+			if (keys[KEY_INPUT_RETURN] == 1 && oldkeys[KEY_INPUT_RETURN] == 0) {
+				scene = Scene::TitleScene;
+			}
+			break;
+
+		case EndScene:
+			if (keys[KEY_INPUT_RETURN] == 1 && oldkeys[KEY_INPUT_RETURN] == 0) {
+				scene = Scene::TitleScene;
+			}
+			break;
 		}
 
-		if (timerFlag == true)
-		{
-			coolTime--;
-		}
-		if (coolTime <= 0 && timerFlag == true)
-		{
-			timerFlag = false;
-			coolTime = 50;
-			Z = 0;
-		}
-		// 経過時間(wlapsedTime[s])の計算
-		nowCount = GetNowHiPerformanceCount();
-		elapsedCount = nowCount - startCount;
-		float elapsedTime = static_cast<float> (elapsedCount) / 1'000'000.0f;
-
-		// スタート地点　：　start
-		// エンド地点　：　end
-		// 経過時間　：　wlapsedTime[s]
-		// 移動完了の率(経過時間/全体時間) : timeRate(%)
-
-		timeRate = min(elapsedTime / maxTime, 1.0f);
-
-		// 2次ベジェ曲線の考え方を適用する
-		Vector3 a = lerp(p0, p1, timeRate);
-		Vector3 b = lerp(p1, p2, timeRate);
-		Vector3 c = lerp(p2, p3, timeRate);
-		Vector3 d = lerp(a, b, timeRate);
-		Vector3 e = lerp(b, c, timeRate);
-
-		position = lerp(d, e, timeRate);
-
-		player = { X,Y,Z };
-
-		// position = easeIn(start, end, timeRate);
-		// position = easeOut(start,end,timeRate);
-		// position = easeInOut(start,end,timeRate);
-
-		//当たり判定処理
-		hit = CheckAllCollisions(player, position, playerRadius, enemyRadius);
-
-		//敵にプレイヤーが当たったら
-		if (hit == true)
-		{
-			//プレイヤーのデスフラグを立てる(ゲームオーバーになる)
-
-		}
 
 		// 描画処理
-		ClearDrawScreen(); // 画面を消去
-		DrawAxis3D(500.0f); // xyz軸の描画
-
-		// 球の描画
-		DrawSphere3D(player, 5.0f, playerRadius, GetColor(0, 0, 0), GetColor(255, 255, 255), TRUE);
-
-		DrawSphere3D(position, 5.0f, enemyRadius, GetColor(255, 0, 0), GetColor(255, 255, 255), TRUE);
-		DrawSphere3D(p0, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
-		DrawSphere3D(p1, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
-		DrawSphere3D(p2, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
-		DrawSphere3D(p3, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
-
-		//
-		DrawFormatString(0, 0, GetColor(255, 255, 255), "position(%5.1f,%5.1f,%5.1f)", position.x, position.y, position.z);
-		DrawFormatString(0, 20, GetColor(255, 255, 255), "%7.3f[s]", elapsedTime);
-		DrawFormatString(0, 40, GetColor(255, 255, 255), "[R] : Restart");
-		DrawFormatString(0, 60, GetColor(255, 255, 255), "p0 (%6.1f,%6.1f,%6.1f)", p0.x, p0.y, p0.z);
-		DrawFormatString(0, 80, GetColor(255, 255, 255), "p1 (%6.1f,%6.1f,%6.1f)", p1.x, p1.y, p1.z);
-		DrawFormatString(0, 100, GetColor(255, 255, 255), "p2 (%6.1f,%6.1f,%6.1f)", p2.x, p2.y, p2.z);
-		DrawFormatString(0, 120, GetColor(255, 255, 255), "p3 (%6.1f,%6.1f,%6.1f)", p3.x, p3.y, p3.z);
-
-		//敵にプレイヤーが当たったら
-		if (hit == true)
+		switch (scene)
 		{
-			DrawFormatString(0, 140, GetColor(255, 0, 0), "当たった");
+		case TitleScene:
+			DrawGraph(0, 0, titleHundle, true);
+			break;
 
+		case GameScene:
+
+			ClearDrawScreen(); // 画面を消去
+			DrawAxis3D(500.0f); // xyz軸の描画
+
+			// 球の描画
+			DrawSphere3D(player, 5.0f, playerRadius, GetColor(0, 0, 0), GetColor(255, 255, 255), TRUE);
+
+			DrawSphere3D(enemy, 5.0f, enemyRadius, GetColor(255, 0, 0), GetColor(255, 255, 255), TRUE);
+			DrawSphere3D(p0, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
+			DrawSphere3D(p1, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
+			DrawSphere3D(p2, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
+			DrawSphere3D(p3, 3.0f, 32, GetColor(0, 255, 0), GetColor(255, 255, 255), TRUE);
+
+			//
+			DrawFormatString(0, 0, GetColor(255, 255, 255), "position(%5.1f,%5.1f,%5.1f)", enemy.x, enemy.y, enemy.z);
+			DrawFormatString(0, 20, GetColor(255, 255, 255), "%7.3f[s]", elapsedTime);
+			DrawFormatString(0, 40, GetColor(255, 255, 255), "[R] : Restart");
+			DrawFormatString(0, 60, GetColor(255, 255, 255), "p0 (%6.1f,%6.1f,%6.1f)", p0.x, p0.y, p0.z);
+			DrawFormatString(0, 80, GetColor(255, 255, 255), "p1 (%6.1f,%6.1f,%6.1f)", p1.x, p1.y, p1.z);
+			DrawFormatString(0, 100, GetColor(255, 255, 255), "p2 (%6.1f,%6.1f,%6.1f)", p2.x, p2.y, p2.z);
+			DrawFormatString(0, 120, GetColor(255, 255, 255), "p3 (%6.1f,%6.1f,%6.1f)", p3.x, p3.y, p3.z);
+
+			//敵にプレイヤーが当たったら
+			if (hit == true)
+			{
+				DrawFormatString(0, 140, GetColor(255, 0, 0), "当たった");
+			}
+
+			break;
+
+		case ClearScene:
+			DrawGraph(0, 0, clearHundle, true);
+			break;
+
+		case EndScene:
+			DrawGraph(0, 0, endHundle, true);
+			break;
 		}
 
 		//---------  ここまでにプログラムを記述  ---------//
